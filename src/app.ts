@@ -2,23 +2,21 @@ import express from "express";
 import { SwapiService } from "./swapi.service";
 
 const app = express();
-const port = 8080; // default port to listen
-
-// define a route handler for the default home page
-app.get("/", (req: any, res: any) => {
-    res.send("Hello world!");
-});
+const port = 8080;
+const swService = new SwapiService();
+app.use(express.json())
 
 app.get("/films", async (req: any, res: any) => {
-    // res.send("Some films");
-    const swService = new SwapiService();
     const response = await swService.getAllFilms();
-    console.log(`Response: ${JSON.stringify(response)}`)
     res.send(response);
-    // return response;
 });
 
-// start the Express server
+app.post("/characters", async (req, res) => {
+    const filmId: number = parseInt(req.body.filmId);
+    const response = await swService.getAllCharactersByFilmId(filmId)
+    res.send(response);
+})
+
 app.listen(port, () => {
     console.log(`server started at http://localhost:${port}`);
 });

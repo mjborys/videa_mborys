@@ -1,9 +1,18 @@
+import "reflect-metadata";
 import app from '../src/app';
 import supertest from 'supertest';
 import { StarWarsCharacter, StarWarsFilm } from '../src/swapi.service';
-import { createJsxAttribute, isToken } from 'typescript';
+import { container } from 'tsyringe';
+import { MockStarWarsDatastore } from './swapi.mock.datastore';
+
 
 describe('Star wars films API tests', () => {
+    beforeEach(() => {
+        container.register("IStarWarsDataStore", {
+            useClass: MockStarWarsDatastore
+        })
+    })
+
     describe(`GET /films`, () => {
         it('returns 200 with data', async () => {
             await supertest(app).get("/films").expect(200).then(response => {

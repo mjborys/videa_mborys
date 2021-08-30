@@ -1,21 +1,8 @@
-import * as rm from 'typed-rest-client/RestClient'
 import { CacheContainer } from 'node-ts-cache'
 import { MemoryStorage } from 'node-ts-cache-storage-memory'
-
-interface RawStarWarsFilm {
-    url: string;
-    title: string;
-    release_date: string;
-    characters: string[]; // URLs of character resources
-}
-
-interface RawStarWarsFilmsResponse {
-    results: RawStarWarsFilm[];
-}
-
-interface RawStarWarsPerson {
-    name: string;
-}
+import { inject, injectable } from 'tsyringe';
+import { IStarWarsDataStore } from './data.types';
+// import { StarWarsRESTDataStore } from './swapi.rest.datastore';
 
 export interface StarWarsFilm {
     id: number; // as far as I can tell this needs to be parsed from URL
@@ -28,13 +15,14 @@ export interface StarWarsCharacter {
     name: string;
 }
 
+@injectable()
 export class SwapiService {
-    private restClient: rm.RestClient;
     private cache: CacheContainer;
+    private _dataStore: IStarWarsDataStore;
 
-    constructor() {
-        this.restClient = new rm.RestClient('rest-samples', 'https://swapi.dev/api/')
-        this.cache = new CacheContainer(new MemoryStorage())
+    constructor(@inject("IStarWarsDataStore") private datastore: IStarWarsDataStore) {
+        this.cache = new CacheContainer(new MemoryStorage());
+        this._dataStore = datastore;
     }
 
     public async getAllFilms(): Promise<StarWarsFilm[]> {
@@ -42,11 +30,8 @@ export class SwapiService {
         if (cachedFilms) {
             return cachedFilms;
         }
-        let response = await this.restClient.get<RawStarWarsFilmsResponse>('films')
-        if (!response.result) {
-            throw new Error(`Unable to get response for all films`)
-        }
-        const films = response.result.results.map(rawResult => {
+        const rawFilms = await this._dataStore.getAllFilms();
+        const films = rawFilms.results.map(rawResult => {
             return {
                 id: this.getFilmIdFromUrl(rawResult.url),
                 title: rawResult.title,
@@ -65,17 +50,19 @@ export class SwapiService {
         if (cachedCharacters) {
             return cachedCharacters;
         }
-        let filmResponse = await this.restClient.get<RawStarWarsFilm>(`films/${filmId}`);
-        if (!filmResponse.result) {
+        let rawFilm = await this._dataStore.getFilmById(filmId);
+        if (!rawFilm) {
             return null;
         }
-        const charactersInFilmUrls = filmResponse.result.characters;
+        const charactersInFilmUrls = rawFilm.characters;
         const characters = Promise.all(charactersInFilmUrls.map(async characterUrl => {
             const characterId = this.getCharacterIdFromUrl(characterUrl);
-            const person = await this.restClient.get<RawStarWarsPerson>(`people/${characterId}`);
+            const person = await this._dataStore.getPersonById(characterId);
             return {
                 id: characterId,
-                name: person.result?.name || ''
+                // Decision made here to not disrupt the whole response just because we cant find a character name,
+                // we can still return other characters. Could also throw a 404 and error here if this is deemed critical.
+                name: person?.name || ``
             }
         }))
         this.cache.setItem(cacheKey, characters, { ttl: 3600 })
@@ -100,7 +87,6 @@ export class SwapiService {
 
     private getIdFromUrlPathname(url: string, position: number) {
         return parseInt(new URL(url).pathname.split('/')[position]);
-
     }
 }
 

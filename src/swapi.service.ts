@@ -2,7 +2,6 @@ import { CacheContainer } from 'node-ts-cache'
 import { MemoryStorage } from 'node-ts-cache-storage-memory'
 import { inject, injectable } from 'tsyringe';
 import { IStarWarsDataStore } from './data.types';
-// import { StarWarsRESTDataStore } from './swapi.rest.datastore';
 
 export interface StarWarsFilm {
     id: number; // as far as I can tell this needs to be parsed from URL

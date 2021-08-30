@@ -59,7 +59,7 @@ export class SwapiService {
         return films;
     }
 
-    public async getAllCharactersByFilmId(filmId: number): Promise<StarWarsCharacter[]> {
+    public async getAllCharactersByFilmId(filmId: number): Promise<StarWarsCharacter[] | null> {
         const cacheKey = `characters_by_film_${filmId}`;
         const cachedCharacters = await this.cache.getItem<StarWarsCharacter[]>(cacheKey)
         if (cachedCharacters) {
@@ -67,7 +67,7 @@ export class SwapiService {
         }
         let filmResponse = await this.restClient.get<RawStarWarsFilm>(`films/${filmId}`);
         if (!filmResponse.result) {
-            throw new Error(`Unable to get response for filmId ${filmId}`)
+            return null;
         }
         const charactersInFilmUrls = filmResponse.result.characters;
         const characters = Promise.all(charactersInFilmUrls.map(async characterUrl => {
